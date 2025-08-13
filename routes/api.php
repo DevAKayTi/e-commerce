@@ -4,8 +4,16 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\ApiGatewayController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\Storefront\CartController;
+use App\Http\Controllers\Admin\AdminOrderController;
+use App\Http\Controllers\Admin\AdminProductController;
+use App\Http\Controllers\Storefront\ProductController;
+use App\Http\Controllers\Admin\AdminCategoryController;
+use App\Http\Controllers\Storefront\CategoryController;
+use App\Http\Controllers\Storefront\CheckoutController;
+use App\Http\Controllers\Admin\AdminProductVariantController;
+use App\Http\Controllers\Storefront\ProductVariantController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -17,77 +25,83 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/forgot-password', [AuthController::class, 'sendResetLinkEmail']);
 Route::post('/reset-password', [AuthController::class, 'reset']);
 
-// Public finance route (no auth)
-Route::prefix('finance')->group(function () {
-    Route::any('{endpoint}', [ApiGatewayController::class, 'handleFinanceService'])
-        ->where('endpoint', '.*');
-});
+Route::get('store/products', [ProductController::class, 'index']);
+Route::post('store/products', [ProductController::class, 'show']);
 
 Route::middleware('auth:api')->group(function () {
 
-    Route::post('/change-password', [AuthController::class, 'changePassword']);
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/me', [AuthController::class, 'me']);
+    Route::get('/categories', [CategoryController::class, 'index']);
+    Route::get('/categories/{slug}', [CategoryController::class, 'show']);
 
-    // User service gateway
-    Route::prefix('user')->group(function () {
-        Route::any('{endpoint}', [ApiGatewayController::class, 'handleUserService'])
-            ->where('endpoint', '.*');
-    });
+    // Products
+    Route::get('/products', [ProductController::class, 'index']);
+    Route::get('/products/{slug}', [ProductController::class, 'show']);
 
-    // Academic service gateway
-    Route::prefix('academic')->group(function () {
-        Route::any('{endpoint}', [ApiGatewayController::class, 'handleAcademicService'])
-            ->where('endpoint', '.*');
-    });
+    // Product Variants
+    Route::get('/products/{slug}/variants', [ProductVariantController::class, 'index']);
+    Route::get('/products/{slug}/variants/{id}', [ProductVariantController::class, 'show']);
 
-    // Finance service gateway (authenticated)
-    Route::prefix('finance')->group(function () {
-        Route::any('{endpoint}', [ApiGatewayController::class, 'handleFinanceService'])
-            ->where('endpoint', '.*');
-    });
+    // Cart
+    Route::get('/cart', [CartController::class, 'index']);
+    Route::post('/cart/add', [CartController::class, 'add']);
+    Route::post('/cart/remove', [CartController::class, 'remove']);
+    Route::post('/cart/update', [CartController::class, 'update']);
 
-    // Role-based routes (keep your role middleware and method as is)
-    Route::middleware('role:Teacher')->prefix('teacher')->group(function () {
-        Route::any('{endpoint}', [ApiGatewayController::class, 'handleTeacherService'])
-            ->where('endpoint', '.*');
-    });
+    // Checkout
+    Route::post('/checkout', [CheckoutController::class, 'process']);
 
-    Route::middleware('role:student')->prefix('student')->group(function () {
-        Route::any('{endpoint}', [ApiGatewayController::class, 'handleStudentService'])
-            ->where('endpoint', '.*');
-    });
+    Route::middleware('role:Super Admin')->group(function () {
+        Route::prefix('users')->group(function () {
+            Route::post('/', [UserController::class, 'index']);
+            Route::post('store', [UserController::class, 'store']);
+            Route::post('show', [UserController::class, 'show']);
+            Route::post('update', [UserController::class, 'update']);
+            Route::post('delete', [UserController::class, 'delete']);
+        });
 
-    Route::middleware('role:hr')->prefix('hr')->group(function () {
-        Route::any('{endpoint}', [ApiGatewayController::class, 'handleHRService'])
-            ->where('endpoint', '.*');
-    });
+        // Permission management routes
+        Route::prefix('permissions')->group(function () {
+            Route::post('/', [PermissionController::class, 'index']);
+            Route::post('store', [PermissionController::class, 'store']);
+            Route::post('show', [PermissionController::class, 'show']);
+            Route::post('update', [PermissionController::class, 'update']);
+            Route::post('delete', [PermissionController::class, 'delete']);
+        });
 
-    // User management routes (keep POST as in original)
-    Route::prefix('users')->group(function () {
-        Route::post('/', [UserController::class, 'index']);
-        Route::post('store', [UserController::class, 'store']);
-        Route::post('show', [UserController::class, 'show']);
-        Route::post('update', [UserController::class, 'update']);
-        Route::post('delete', [UserController::class, 'delete']);
-    });
+        // Role management routes
+        Route::prefix('roles')->group(function () {
+            Route::post('/', [RoleController::class, 'index']);
+            Route::post('store', [RoleController::class, 'store']);
+            Route::post('show', [RoleController::class, 'show']);
+            Route::post('update', [RoleController::class, 'update']);
+            Route::post('delete', [RoleController::class, 'delete']);
+        });
 
-    // Permission management routes
-    Route::prefix('permissions')->group(function () {
-        Route::post('/', [PermissionController::class, 'index']);
-        Route::post('store', [PermissionController::class, 'store']);
-        Route::post('show', [PermissionController::class, 'show']);
-        Route::post('update', [PermissionController::class, 'update']);
-        Route::post('delete', [PermissionController::class, 'delete']);
-    });
+        // Categories Management
+        Route::get('/categories', [AdminCategoryController::class, 'index']);
+        Route::post('/categories', [AdminCategoryController::class, 'store']);
+        Route::get('/categories/{id}', [AdminCategoryController::class, 'show']);
+        Route::post('/categories/{id}', [AdminCategoryController::class, 'update']);
+        Route::delete('/categories/{id}', [AdminCategoryController::class, 'destroy']);
 
-    // Role management routes
-    Route::prefix('roles')->group(function () {
-        Route::post('/', [RoleController::class, 'index']);
-        Route::post('store', [RoleController::class, 'store']);
-        Route::post('show', [RoleController::class, 'show']);
-        Route::post('update', [RoleController::class, 'update']);
-        Route::post('delete', [RoleController::class, 'delete']);
+        // Products Management
+        Route::get('/products', [AdminProductController::class, 'index']);
+        Route::post('/products', [AdminProductController::class, 'store']);
+        Route::get('/products/{id}', [AdminProductController::class, 'show']);
+        Route::post('/products/{id}', [AdminProductController::class, 'update']);
+        Route::delete('/products/{id}', [AdminProductController::class, 'destroy']);
+
+        // Product Variants Management
+        Route::get('/products/{product_id}/variants', [AdminProductVariantController::class, 'index']);
+        Route::post('/products/{product_id}/variants', [AdminProductVariantController::class, 'store']);
+        Route::get('/products/{product_id}/variants/{id}', [AdminProductVariantController::class, 'show']);
+        Route::post('/products/{product_id}/variants/{id}', [AdminProductVariantController::class, 'update']);
+        Route::delete('/products/{product_id}/variants/{id}', [AdminProductVariantController::class, 'destroy']);
+
+        // Orders Management
+        Route::get('/orders', [AdminOrderController::class, 'index']);
+        Route::get('/orders/{id}', [AdminOrderController::class, 'show']);
+        Route::post('/orders/{id}/update-status', [AdminOrderController::class, 'updateStatus']);
     });
 
 });
